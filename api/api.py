@@ -23,7 +23,7 @@ from utils.dto import QueryQuestion
 from components.query_translation import query_translation
 from components.query_analysis import query_analysis
 
-# Enviroment import
+# Enviroment import 
 from dotenv import load_dotenv
 import os
 load_dotenv(dotenv_path=".env")
@@ -95,17 +95,17 @@ def chatbot_build(llm, embedding_model, vector_store):
     graph = graph_builder.compile()
     return graph
 
-chatbot_comonents = {}    
+chatbot_components = {}    
 
 @asynccontextmanager
 async def app_initialization(app: FastAPI):
     # Initialize components
     llm, embedding_model, vector_store = components_initialize()
     graph = chatbot_build(llm, embedding_model, vector_store)
-    chatbot_comonents["llm"] = llm
-    chatbot_comonents["embedding_model"] = embedding_model
-    chatbot_comonents["vector_store"] = vector_store
-    chatbot_comonents["graph"] = graph
+    chatbot_components["llm"] = llm
+    chatbot_components["embedding_model"] = embedding_model
+    chatbot_components["vector_store"] = vector_store
+    chatbot_components["graph"] = graph
     yield
     
 app = FastAPI(lifespan=app_initialization)
@@ -113,10 +113,10 @@ app = FastAPI(lifespan=app_initialization)
 @app.post("/agents/question-answering")
 async def question_answering(question: QueryQuestion):
     raw_query = question.query
-    chatbot = chatbot_comonents["graph"]
+    chatbot = chatbot_components["graph"]
     result = chatbot.invoke({"raw_question": raw_query})
     response = {"context": [{num: doc.page_content} for num, doc in enumerate(result['context'])], "answer": result['answer']}
     return response
     
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=28080)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

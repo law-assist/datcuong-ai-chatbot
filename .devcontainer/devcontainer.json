@@ -1,0 +1,28 @@
+{
+  // Dev container name
+  "name": "AI chatbot dev environment",
+  // Base image for dev container
+  "build": {
+		"dockerfile": "Dockerfile",
+		"options": ["--tag=ai-chatbot"]
+	},
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  "forwardPorts": [8001, 27018],
+  // Use 'postCreateCommand' to run command after container created.
+  "postCreateCommand": [
+    "python -V"
+  ],
+  // Configure tool-specific properties.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "donjayamanne.python-environment-manager",
+        "ms-python.debugpy",
+        "eamodio.gitlens"
+      ]
+    }
+  },
+  "remoteUser": "root"
+}

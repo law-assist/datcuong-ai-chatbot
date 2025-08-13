@@ -9,3 +9,6 @@ database
 
 # Environment variables
 .env
+
+# Python virtual environment
+.venv
