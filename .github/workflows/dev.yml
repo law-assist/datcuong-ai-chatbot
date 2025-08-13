@@ -48,12 +48,18 @@ jobs:
       uses: devcontainers/ci@v0.3.1900000328
       id: dev_container_prebuild
       with:
-        imageName: ${{ secrets.DOCKER_USERNAME }}/ai-law-linking
+        imageName: ${{ secrets.DOCKER_USERNAME }}/ai-chatbot
         imageTag: dev-latest
-        cacheFrom: ${{ secrets.DOCKER_USERNAME }}/ai-law-linking
+        cacheFrom: ${{ secrets.DOCKER_USERNAME }}/ai-chatbot
         env: |
           DATABASE_URI=${{ vars.DATABASE_URI }}
           DATABASE_NAME=${{ vars.DATABASE_NAME }}
+          MONGO_URI=${{ vars.MONGO_URI }}
+          MONGO_DBNAME=${{ vars.MONGO_DBNAME }}
+          LANGSMITH_TRACING=${{ vars.LANGSMITH_TRACING }}
+          LANGSMITH_ENDPOINT=${{ vars.LANGSMITH_ENDPOINT }}
+          LANGSMITH_API_KEY=${{ vars.LANGSMITH_API_KEY }}
+          LANGSMITH_PROJECT=${{ vars.LANGSMITH_PROJECT }}
         push: always
         runCmd: python -V
 
