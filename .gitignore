@@ -1,0 +1,11 @@
+# Python bytecode files
+__pycache__
+
+# VS Settings
+.vscode
+
+# Local database 
+database
+
+# Environment variables
+.env

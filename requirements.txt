@@ -1,0 +1,9 @@
+chromadb
+pymongo
+langchain
+langsmith
+langgraph
+langchain-ollama
+langchain-chroma
+langchain-huggingface
+fastapi[standard]
