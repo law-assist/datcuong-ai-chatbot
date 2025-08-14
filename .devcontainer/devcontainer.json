@@ -7,7 +7,7 @@
 		"options": ["--tag=ai-chatbot"]
 	},
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  "forwardPorts": [8001, 27018],
+  "forwardPorts": [8000],
   // Use 'postCreateCommand' to run command after container created.
   "postCreateCommand": "python -V"
   ,

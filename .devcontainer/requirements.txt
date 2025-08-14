@@ -7,4 +7,5 @@ langgraph
 langchain-ollama
 langchain-chroma
 langchain-huggingface
+sentence-transformers
 fastapi[standard]

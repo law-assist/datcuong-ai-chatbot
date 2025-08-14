@@ -45,9 +45,13 @@ def components_initialize():
 
     # Vector store initialization
     persist_directory = "./database/all-MiniLM-L6-v2/3000_300"
+    vectordb_host = "vector-db"
+    vectordb_port = 8000
     
     vector_store = Chroma(
-        persist_directory=persist_directory,
+        # persist_directory=persist_directory,
+        host=vectordb_host,
+        port=vectordb_port,
         collection_name="legislation",
         embedding_function=embedding_model,
     )
@@ -55,7 +59,7 @@ def components_initialize():
     
     return llm, embedding_model, vector_store
 
-def chatbot_build(llm, embedding_model, vector_store):
+def chatbot_build(llm, embedding_model, vector_store: Chroma):
     rag_template = """
     Bạn là một luật sư giàu kinh nghiệm với vai trò tư vấn pháp lý cho khách hàng. Hãy trả lời câu hỏi của khách hàng bằng tiếng Việt CHỈ dựa trên các tài liệu đã cung cấp:
     {context}
@@ -119,4 +123,4 @@ async def question_answering(question: QueryQuestion):
     return response
     
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
