@@ -9,9 +9,6 @@ RUN apt-get install -y \
     git \
     bash
 
-# update PATH
-# ENV PATH="$PATH:/usr/bin/local/python"
-
 # install Python dependencies
 RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
     pip install --no-cache-dir --requirement /tmp/requirements.txt

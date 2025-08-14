@@ -1,0 +1,67 @@
+name: Law assist AI chatbot development CI
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    branches: [ "dev" ]
+  workflow_dispatch:
+
+jobs:
+
+  dev-container-build-push:
+    runs-on: [self-hosted, deployment]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Login Docker Hub
+      uses: docker/login-action@v3.4.0
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Check Docker buildkit config
+      run: "cat /home/la-2025/.config/buildkit/buildkitd.toml"
+
+    - name: Setup Docker buildx
+      uses: docker/setup-buildx-action@v3.10.0
+      id: buildx
+      with:
+        driver-opts: |
+          network=host
+        buildkitd-config: /home/la-2025/.config/buildkit/buildkitd.toml
+        buildkitd-flags: "--allow-insecure-entitlement security.insecure --allow-insecure-entitlement network.host --debug"
+
+    - name: Setup Node for devcontainers cli
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Verify node and skopeo setup
+      run: |
+        node -v
+        skopeo -v
+
+    - name: Pre-build and push Dev container images
+      uses: devcontainers/ci@v0.3.1900000328
+      id: dev_container_prebuild
+      with:
+        imageName: ${{ secrets.DOCKER_USERNAME }}/ai-chatbot
+        imageTag: dev-latest
+        cacheFrom: ${{ secrets.DOCKER_USERNAME }}/ai-chatbot
+        env: |
+          DATABASE_URI=${{ vars.DATABASE_URI }}
+          DATABASE_NAME=${{ vars.DATABASE_NAME }}
+          MONGO_URI=${{ vars.MONGO_URI }}
+          MONGO_DBNAME=${{ vars.MONGO_DBNAME }}
+          LANGSMITH_TRACING=${{ vars.LANGSMITH_TRACING }}
+          LANGSMITH_ENDPOINT=${{ vars.LANGSMITH_ENDPOINT }}
+          LANGSMITH_API_KEY=${{ vars.LANGSMITH_API_KEY }}
+          LANGSMITH_PROJECT=${{ vars.LANGSMITH_PROJECT }}
+        push: always
+        runCmd: python -V
+
+    - name: Verify CI/CD pipeline
+      run: echo "${{ steps.dev_container_prebuild.outputs.runCmdOutput }}"
