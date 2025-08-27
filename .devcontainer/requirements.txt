@@ -4,8 +4,12 @@ ipykernel
 langchain
 langsmith
 langgraph
+langchain_community
 langchain-ollama
 langchain-chroma
 langchain-huggingface
+transformers
 sentence-transformers
+einops
+# py_vncorenlp
 fastapi[standard]
