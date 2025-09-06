@@ -5,6 +5,7 @@ from langchain_chroma import Chroma
 # from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import START, StateGraph
 
 # Transformer import
@@ -13,7 +14,8 @@ from transformers import AutoModelForSequenceClassification
 # import py_vncorenlp
 
 # Common import
-from typing import List, TypedDict, Any
+import time
+from bson import ObjectId
 
 # FastAPI import
 from fastapi import FastAPI
@@ -25,10 +27,14 @@ import sys
 sys.path.insert(0, "..")
 
 # Local import
-from utils.dto import QueryQuestion
+from utils.data_processing import build_chroma_document_from_mongo_document
+from utils.mongo_handler import get_legislation_by_query
+from utils.dto import IndexMongoId, QueryQuestion
+from types.type import State, ChatbotComponents
 from components.query_translation import query_translation
 from components.query_analysis import query_analysis
 from components.retriever import retrieve_and_rerank
+from components.indexing import indexing_docs
 
 # Enviroment import 
 from dotenv import load_dotenv
@@ -44,12 +50,13 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 RERANK_MODEL = os.getenv("RERANK_MODEL")
-RERANK_MAX_LENGTH = int(os.getenv("RERANK_MAX_LENGTH"))
+# RERANK_MAX_LENGTH = int(os.getenv("RERANK_MAX_LENGTH"))
 
 VECTOR_STORE_COLLECTION = os.getenv("VECTOR_STORE_COLLECTION")
 VECTOR_STORE_HOST = os.getenv("VECTOR_STORE_HOST")
 VECTOR_STORE_PORT = int(os.getenv("VECTOR_STORE_PORT"))
 
+# Chatbot components initialization
 def components_initialize():
     # Ollama model initialization
     llm = ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL)
@@ -58,7 +65,7 @@ def components_initialize():
     # Embedding model
     # embedding_model = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
     embedding_model = OllamaEmbeddings(model=EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL)
-    print(f"Embedding model loaded: {embedding_model.model_name}")
+    print(f"Embedding model loaded: {embedding_model.model}")
     
     # Reranker model
     # reranker_model = CrossEncoder(RERANK_MODEL, max_length=RERANK_MAX_LENGTH)
@@ -69,6 +76,7 @@ def components_initialize():
         use_flash_attn=False,
     )
     reranker_model.to('cpu')
+    # reranker_model = RERANK_MODEL
     print(f"Reranker model loaded: {RERANK_MODEL}")
 
     # Vector store initialization
@@ -82,8 +90,9 @@ def components_initialize():
     print(f"Total number of documents in the vector store: {vector_store._collection.count()}")
     retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k":5})
     
-    return llm, embedding_model, reranker_model, retriever
+    return llm, embedding_model, reranker_model, vector_store, retriever
 
+# Chatbot build function
 def chatbot_build(llm: ChatOllama, reranker_model, retriever: VectorStoreRetriever):
     rag_template = """
     Bạn là một luật sư giàu kinh nghiệm với vai trò tư vấn pháp lý cho khách hàng. Hãy trả lời câu hỏi của khách hàng bằng tiếng Việt CHỈ dựa trên các tài liệu đã cung cấp:
@@ -91,14 +100,6 @@ def chatbot_build(llm: ChatOllama, reranker_model, retriever: VectorStoreRetriev
     Câu hỏi: {question}
     """
     prompt = ChatPromptTemplate.from_template(rag_template)
-    
-    # Langgraph state definition
-    class State(TypedDict):
-        raw_question: str
-        query: List[str]
-        structured_query: List[str]
-        context: List[tuple[Document, Any]]
-        answer: str
     
     # Langgraph node definition
     def translation(state: State):
@@ -116,7 +117,7 @@ def chatbot_build(llm: ChatOllama, reranker_model, retriever: VectorStoreRetriev
 
     def generate(state: State):
         docs_content = "\n\n".join(doc.page_content for doc in state["context"])
-        messages = prompt.invoke({"question": state["structured_query"], "context": docs_content})
+        messages = prompt.invoke({"question": state["raw_question"], "context": docs_content})
         response = llm.invoke(messages)
         return {"answer": response.content}
     
@@ -125,18 +126,44 @@ def chatbot_build(llm: ChatOllama, reranker_model, retriever: VectorStoreRetriev
     graph = graph_builder.compile()
     return graph
 
-chatbot_components = {}    
+# Sanitizing metadata function
+def sanitize_metadata(metadata):
+    """Sanitize metadata by removing keys that are not serializable."""
+    for k, v in metadata.items():
+        if isinstance(v, (dict, list)):
+            metadata[k] = ", ".join(map(str, v))  # Convert to string
+    return metadata
+
+# Query MongoDB and index to vector store
+def query_mongo_and_index(query):
+    legislations = get_legislation_by_query(query)
+    chroma_documents = [build_chroma_document_from_mongo_document(doc) for doc in legislations["data"]]
+    print(f"Number of documents: {len(chroma_documents)}")
+    
+    # Text splitter configuration
+    chunk_size = 3000  # chunk size (characters)
+    chunk_overlap = 300  # chunk overlap (characters)  
+    
+    # Vector store
+    vector_store = chatbot_componets.vector_store
+    # Convert the documents to Chroma Document format
+    docs = [Document(page_content=doc["documents"], metadata=sanitize_metadata(doc["metadata"])) for doc in chroma_documents]
+    
+    return indexing_docs(docs, chunk_size, chunk_overlap, vector_store)
+
+chatbot_componets: ChatbotComponents
 
 @asynccontextmanager
 async def app_initialization(app: FastAPI):
     # Initialize components
-    llm, embedding_model, reranker_model, retriever = components_initialize()
+    llm, embedding_model, reranker_model, vector_store, retriever = components_initialize()
     graph = chatbot_build(llm, reranker_model, retriever)
-    chatbot_components["llm"] = llm
-    chatbot_components["embedding_model"] = embedding_model
-    chatbot_components["reranker_model"] = reranker_model
-    chatbot_components["retriever"] = retriever
-    chatbot_components["graph"] = graph
+    chatbot_componets.llm = llm
+    chatbot_componets.embedding_model = embedding_model
+    chatbot_componets.reranker_model = reranker_model
+    chatbot_componets.vector_store = vector_store
+    chatbot_componets.retriever = retriever
+    chatbot_componets.graph = graph
     yield
     
 app = FastAPI(lifespan=app_initialization)
@@ -144,9 +171,17 @@ app = FastAPI(lifespan=app_initialization)
 @app.post("/agents/question-answering")
 async def question_answering(question: QueryQuestion):
     raw_query = question.query
-    chatbot = chatbot_components["graph"]
+    chatbot = chatbot_componets.graph
     result = chatbot.invoke({"raw_question": raw_query})
     response = {"context": [{num: doc.page_content} for num, doc in enumerate(result['context'])], "answer": result['answer']}
+    return response
+
+@app.post("/indexing/id")
+async def mongoid_indexing(param: IndexMongoId):
+    legislation_id = param.indexing_id
+    object_id = ObjectId(legislation_id)
+    query = {"_id": object_id}
+    response = query_mongo_and_index(query)
     return response
     
 if __name__ == "__main__":
