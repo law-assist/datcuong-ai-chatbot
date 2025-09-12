@@ -42,5 +42,5 @@ def indexing_docs(docs: List[Document], chunk_size: int, chunk_overlap: int, vec
         else:
             print("Failed to add documents after 3 attempts. Skipping this document.")
             
-    return {"message": f"Successfully add {total_success/len(docs)} documents!",
-            "errors": [f"Document ID {failed_doc_id}: {error_list[failed_doc_id]}" for failed_doc_id in error_list.keys]}
+    return {"message": f"Successfully add {total_success}/{len(docs)} documents!",
+            "errors": [f"Document ID {failed_doc_id}: {error_list[failed_doc_id]}" for failed_doc_id in error_list.keys()]}

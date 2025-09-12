@@ -1,4 +1,3 @@
-chromadb
 pymongo
 ipykernel
 langchain
@@ -7,6 +6,7 @@ langgraph
 langchain_community
 langchain-ollama
 langchain-chroma
+langgraph-checkpoint-mongodb
 langchain-huggingface
 transformers
 sentence-transformers

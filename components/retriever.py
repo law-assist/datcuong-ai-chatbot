@@ -30,6 +30,8 @@ def retrieve_and_rerank(retriever: VectorStoreRetriever, reranker_model: Any, ra
             results = retriever.invoke(query)
             all_results.append(results)
         unique_results = get_unique_union(all_results)
+        print(f"Retrieved {len(unique_results)} unique documents.")
+        print("-"* 50)  # Separator for readability
         return unique_results
     
     def rerank_local(retrieved_docs: list[Document]) -> list[tuple[Document, Any]]:    
@@ -66,9 +68,18 @@ def retrieve_and_rerank(retriever: VectorStoreRetriever, reranker_model: Any, ra
     
     def rerank_docs(retrieved_docs: list[Document]) -> list[tuple[Document, Any]]:
         if isinstance(reranker_model, str):
-            return rerank_api_call(retrieved_docs)
+            result = rerank_api_call(retrieved_docs)
         else:
-            return rerank_local(retrieved_docs)
+            result = rerank_local(retrieved_docs)
+        for i, doc in enumerate(result):
+            print(f"Document {i + 1}:")
+            print("Name:", doc[0].metadata.get("name", "N/A"))
+            print("Id:", doc[0].metadata.get("id", "N/A"))
+            print("Document number:", doc[0].metadata.get("numberDoc", "N/A"))
+            print("Fields:", doc[0].metadata.get("fields", "N/A"))
+            print("Score:", doc[1])
+            print("-"* 50)  # Separator for readability
+        return result
     
     FirstStageRetrieve = RunnableLambda(first_stage_retrieve)
     RerankDocs = RunnableLambda(rerank_docs)
