@@ -10,7 +10,7 @@ RUN apt-get install -y \
     bash
 
 # install Python dependencies
-RUN --mount=type=bind,source=.devcontainer/requirements.txt,target=/tmp/requirements.txt \
+RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
     pip install --no-cache-dir --requirement /tmp/requirements.txt
 
 # Dev Environment:
