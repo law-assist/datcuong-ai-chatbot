@@ -3,7 +3,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_core.documents import Document
 from langchain_core.runnables import RunnableLambda 
 from sentence_transformers import CrossEncoder
-from typing import Union, Any
+from typing import TypedDict, Union, Any
 import requests
 import os
 from dotenv import load_dotenv
@@ -12,6 +12,11 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=".env")
 JINAAI_API_URL = os.getenv("JINAAI_API_URL")
 JINAAI_API_KEY = os.getenv("JINAAI_API_KEY")
+
+class RerankResults(TypedDict):
+    document: str
+    score: float = 0.0
+    
 
 def get_unique_union(documents: list[list[Document]]) -> list[Document]:
     """ Unique union of retrieved docs """
@@ -45,6 +50,7 @@ def retrieve_and_rerank(retriever: VectorStoreRetriever, reranker_model: Any, ra
     
     def rerank_api_call(retrieved_docs: list[Document]) -> list[tuple[Document, Any]]:
         url = JINAAI_API_URL
+        docs_for_rerank = [RerankResults(doc.page_content) for doc in retrieved_docs]
         headers = {
             "Authorization": f"Bearer {JINAAI_API_KEY}",
             "Content-Type": "application/json"
@@ -53,16 +59,24 @@ def retrieve_and_rerank(retriever: VectorStoreRetriever, reranker_model: Any, ra
             response = requests.post(
                 url,
                 json={
-                    "model": reranker_model,
+                    "model": reranker_model[7:],  # Remove 'jinaai/' prefix
                     "query": raw_question,
-                    "documents": [doc.page_content for doc in retrieved_docs]
+                    "documents": [doc.document for doc in docs_for_rerank],
+                    "return_documents": False
                 },
                 headers=headers,
                 timeout=60
             )
             response.raise_for_status()  # Raise an error for bad responses
-            scores = response.json().get("scores", [])
-            return sorted(list(zip(retrieved_docs, scores)), key=lambda x: x[1], reverse=True)
+            print(f"Reranking API response: {response.json()}")
+            results = response.json().get("results", [])
+            print(f"Reranked {len(results)} documents.")
+            for result in results:
+                index = int(result.get("index"))
+                relevance_score = float(result.get("relevance_score", 0))
+                if index is not None and 0 <= index < len(retrieved_docs):
+                    docs_for_rerank[index].score = relevance_score
+            return sorted(docs_for_rerank, key=lambda x: x.score, reverse=True)
         except requests.RequestException as e:
             raise ValueError("Failed to get reranking scores from the API")
     

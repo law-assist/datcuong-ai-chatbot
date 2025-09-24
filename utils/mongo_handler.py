@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, date
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
@@ -45,9 +45,9 @@ def get_legislation_by_query(query):
 
 def convert_document_from_db_to_available_json(document):
     document["_id"] = str(document["_id"])
-    # document["dateApproved"] = convert_datetime_to_string(document["dateApproved"])
-    # document["createdAt"] = convert_datetime_to_string(document["createdAt"])
-    # document["updatedAt"] = convert_datetime_to_string(document["updatedAt"])
+    document["dateApproved"] = document["dateApproved"]
+    document["createdAt"] = document["createdAt"]
+    document["updatedAt"] = document["updatedAt"]
 
     return document
 

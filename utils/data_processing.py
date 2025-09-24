@@ -1,5 +1,3 @@
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
 def build_chroma_document_from_mongo_document(mongo_document):
     legislation_id = mongo_document["_id"]
     legislation_name = mongo_document["name"]
@@ -9,6 +7,9 @@ def build_chroma_document_from_mongo_document(mongo_document):
     legislation_fields = mongo_document["fields"]
     
     legislation_content = mongo_document["content"]
+    legislation_date_approved = mongo_document["dateApproved"]
+    legislation_created_at = mongo_document["createdAt"]
+    legislation_updated_at = mongo_document["updatedAt"]
     full_document = content_processing(legislation_content)
     
     try:
@@ -18,7 +19,10 @@ def build_chroma_document_from_mongo_document(mongo_document):
             "category": legislation_category,
             "department": legislation_department,
             "numberDoc": legislation_number_doc,
-            "fields": legislation_fields
+            "fields": legislation_fields,
+            "dateApproved": legislation_date_approved,
+            "createdAt": legislation_created_at,
+            "updatedAt": legislation_updated_at
         }
     except KeyError as e:
         raise ValueError(f"Missing expected key in mongo_document: {e}")

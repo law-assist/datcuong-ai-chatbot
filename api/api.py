@@ -2,7 +2,6 @@
 from langchain.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_chroma import Chroma
-# from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_core.documents import Document
 from langgraph.graph import START, StateGraph
@@ -12,10 +11,8 @@ from langgraph.checkpoint.mongodb import MongoDBSaver
 
 # Transformer import
 from transformers import AutoModelForSequenceClassification
-# import py_vncorenlp
 
 # Common import
-import time
 from types import NoneType
 from bson import ObjectId
 
@@ -56,7 +53,6 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 RERANK_MODEL = os.getenv("RERANK_MODEL")
-# RERANK_MAX_LENGTH = int(os.getenv("RERANK_MAX_LENGTH"))
 
 VECTOR_STORE_COLLECTION = os.getenv("VECTOR_STORE_COLLECTION")
 VECTOR_STORE_HOST = os.getenv("VECTOR_STORE_HOST")
@@ -71,25 +67,22 @@ def components_initialize():
     print(f"LLM model loaded: {llm.model}")
 
     # Embedding model
-    # embedding_model = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
     embedding_model = OllamaEmbeddings(model=EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL)
     print(f"Embedding model loaded: {embedding_model.model}")
     
     # Reranker model
-    # reranker_model = RERANK_MODEL
-    reranker_model = AutoModelForSequenceClassification.from_pretrained(
-        RERANK_MODEL,
-        torch_dtype="auto",
-        trust_remote_code=True,
-        use_flash_attn=False,
-    )
-    reranker_model.to('cpu')
-    # reranker_model = RERANK_MODEL
-    print(f"Reranker model loaded: {RERANK_MODEL}")
+    # reranker_model = AutoModelForSequenceClassification.from_pretrained(
+    #     RERANK_MODEL,
+    #     torch_dtype="auto",
+    #     trust_remote_code=True,
+    #     use_flash_attn=False,
+    # )
+    # reranker_model.to('cpu')
+    reranker_model = RERANK_MODEL
+    print(f"Reranker model loaded: {RERANK_MODEL[7:]}")  # Print model name without huggingface prefix
 
     # Vector store initialization
     vector_store = Chroma(
-        # persist_directory=persist_directory,
         host=VECTOR_STORE_HOST,
         port=VECTOR_STORE_PORT,
         collection_name=VECTOR_STORE_COLLECTION,
@@ -120,7 +113,6 @@ def chatbot_build(llm: ChatOllama, reranker_model, retriever: VectorStoreRetriev
         return {"structured_query": structured_query}
         
     def retrieve(state: State):
-        # retrieved_docs = vector_store.similarity_search(state["structured_query"], k=5)
         retrieved_docs = retrieve_and_rerank(retriever, reranker_model, state["messages"][-1].content, state["structured_query"])
         return {"context": retrieved_docs}
 
@@ -128,15 +120,10 @@ def chatbot_build(llm: ChatOllama, reranker_model, retriever: VectorStoreRetriev
         docs_contents = "\n\n".join(doc[0].page_content for doc in state["context"])
         messages = prompt.invoke({"question": state["messages"][-1].content, "context": docs_contents})
         response = llm.invoke(messages)
-        # if state.get("answer") is None or len(state.get("answer")) == 0:
-        #     return {"answer": [response.content]}
         return {"messages": {"role": "assistant", "content": [response.content]}}
 
     def quick_reply(state: State):
         response = llm.invoke(state["messages"][-1].content)
-        # print("Quick reply:", response.content)
-        # if state.get("answer") is None or len(state.get("answer")) == 0:
-        #     return {"answer": [response.content]}
         return {"messages": {"role": "assistant", "content": [response.content]}}
 
     # Langgraph edge definition
@@ -171,10 +158,12 @@ def query_mongo_and_index(query):
     
     # Vector store
     vector_store = chatbot_componets["vector_store"]
+    # Embedding model
+    embedding_model = chatbot_componets["embedding_model"]
     # Convert the documents to Chroma Document format
     docs = [Document(page_content=doc["documents"], metadata=sanitize_metadata(doc["metadata"])) for doc in chroma_documents]
     
-    return indexing_docs(docs, chunk_size, chunk_overlap, vector_store)
+    return indexing_docs(docs, chunk_size, chunk_overlap, embedding_model, vector_store)
 
 # Checkpointer configuration
 def checkpointer_config(user_id: str, chat_id: str):

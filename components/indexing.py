@@ -1,11 +1,13 @@
 import time
-from typing import List, TypedDict
+from typing import List
+from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
 
 
-def text_splitter_config(chunk_size: int, chunk_overlap: int) -> RecursiveCharacterTextSplitter: 
+def text_splitter_recursive_config(chunk_size: int, chunk_overlap: int) -> RecursiveCharacterTextSplitter: 
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,  
         chunk_overlap=chunk_overlap,  
@@ -13,8 +15,15 @@ def text_splitter_config(chunk_size: int, chunk_overlap: int) -> RecursiveCharac
     )
     return text_splitter
 
-def indexing_docs(docs: List[Document], chunk_size: int, chunk_overlap: int, vector_store: Chroma):
-    text_splitter = text_splitter_config(chunk_size, chunk_overlap)
+def text_splitter_semantic_config(embedding_model) -> SemanticChunker:
+    text_splitter = SemanticChunker(
+        embedding_model, breakpoint_threshold_type="percentile", add_start_index=True
+    )
+    return text_splitter
+
+def indexing_docs(docs: List[Document], chunk_size: int, chunk_overlap: int, embedding_model: OllamaEmbeddings , vector_store: Chroma):
+    # text_splitter = text_splitter_recursive_config(chunk_size, chunk_overlap)
+    text_splitter = text_splitter_semantic_config(embedding_model)
     total_success = 0
     error_list = {}
     for doc in docs:

@@ -8,8 +8,7 @@ langchain-ollama
 langchain-chroma
 langgraph-checkpoint-mongodb
 langchain-huggingface
+langchain_experimental
 transformers
-sentence-transformers
-einops
 # py_vncorenlp
 fastapi[standard]

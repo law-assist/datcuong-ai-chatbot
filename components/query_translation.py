@@ -13,9 +13,9 @@ def query_extraction(queries: list[str]) -> list[str]:
     """
     extracted_queries = []
     for query in queries:
-        query = query.strip()
         if query and check_first_number_in_string(query):
-            extracted_queries.append(query[2:])
+            extracted_query = query[2:].strip()  # Remove the leading number and dot
+            extracted_queries.append(extracted_query)
     return extracted_queries
 
 def query_translation(query: str, llm: ChatOllama) -> list[str]:
