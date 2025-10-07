@@ -1,17 +1,18 @@
 from typing import Any, List, TypedDict, Optional
 from langchain_chroma import Chroma
 from langchain_ollama import ChatOllama, OllamaEmbeddings
-from langchain_core.documents import Document
+# from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph.state import StateGraph
 from langgraph.graph import MessagesState
 
+from components.retriever import RerankResults
 
 # Langgraph state definition
 class State(MessagesState):
     query: List[str]
     structured_query: List[str]
-    context: List[tuple[Document, Any]]
+    context: List[RerankResults]
 
 # Chatbot component for api handler
 class ChatbotComponents(TypedDict):    

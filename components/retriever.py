@@ -4,6 +4,7 @@ from langchain_core.documents import Document
 from langchain_core.runnables import RunnableLambda 
 from sentence_transformers import CrossEncoder
 from typing import TypedDict, Union, Any
+from pydantic import Field
 import requests
 import os
 from dotenv import load_dotenv
@@ -14,8 +15,8 @@ JINAAI_API_URL = os.getenv("JINAAI_API_URL")
 JINAAI_API_KEY = os.getenv("JINAAI_API_KEY")
 
 class RerankResults(TypedDict):
-    document: str
-    score: float = 0.0
+    document: Document
+    score: float = Field(default=0.0)
     
 
 def get_unique_union(documents: list[list[Document]]) -> list[Document]:
@@ -39,18 +40,20 @@ def retrieve_and_rerank(retriever: VectorStoreRetriever, reranker_model: Any, ra
         print("-"* 50)  # Separator for readability
         return unique_results
     
-    def rerank_local(retrieved_docs: list[Document]) -> list[tuple[Document, Any]]:    
+    def rerank_local(retrieved_docs: list[Document]) -> list[RerankResults]:    
         tokenized_raw_question = raw_question
-        tokenized_retrieved_docs = [doc.page_content for doc in retrieved_docs]
+        tokenized_retrieved_docs = [RerankResults(document=doc) for doc in retrieved_docs]
         
-        query_and_docs = [[tokenized_raw_question, tokenized_doc] for tokenized_doc in tokenized_retrieved_docs]
+        query_and_docs = [[tokenized_raw_question, tokenized_doc["document"].page_content] for tokenized_doc in tokenized_retrieved_docs]
         
         scores = reranker_model.compute_score(query_and_docs, max_length=4096)
-        return sorted(list(zip(retrieved_docs, scores)), key=lambda x: x[1], reverse=True)
+        for i, score in enumerate(scores):
+            tokenized_retrieved_docs[i]["score"] = score
+        return sorted(tokenized_retrieved_docs, key=lambda x: x["score"], reverse=True)
     
-    def rerank_api_call(retrieved_docs: list[Document]) -> list[tuple[Document, Any]]:
+    def rerank_api_call(retrieved_docs: list[Document]) -> list[RerankResults]:
         url = JINAAI_API_URL
-        docs_for_rerank = [RerankResults(doc.page_content) for doc in retrieved_docs]
+        docs_for_rerank = [RerankResults(document=doc) for doc in retrieved_docs]
         headers = {
             "Authorization": f"Bearer {JINAAI_API_KEY}",
             "Content-Type": "application/json"
@@ -61,7 +64,7 @@ def retrieve_and_rerank(retriever: VectorStoreRetriever, reranker_model: Any, ra
                 json={
                     "model": reranker_model[7:],  # Remove 'jinaai/' prefix
                     "query": raw_question,
-                    "documents": [doc.document for doc in docs_for_rerank],
+                    "documents": [doc["document"].page_content for doc in docs_for_rerank],
                     "return_documents": False
                 },
                 headers=headers,
@@ -75,23 +78,23 @@ def retrieve_and_rerank(retriever: VectorStoreRetriever, reranker_model: Any, ra
                 index = int(result.get("index"))
                 relevance_score = float(result.get("relevance_score", 0))
                 if index is not None and 0 <= index < len(retrieved_docs):
-                    docs_for_rerank[index].score = relevance_score
-            return sorted(docs_for_rerank, key=lambda x: x.score, reverse=True)
+                    docs_for_rerank[index]["score"] = relevance_score
+            return sorted(docs_for_rerank, key=lambda x: x["score"], reverse=True)
         except requests.RequestException as e:
             raise ValueError("Failed to get reranking scores from the API")
     
-    def rerank_docs(retrieved_docs: list[Document]) -> list[tuple[Document, Any]]:
+    def rerank_docs(retrieved_docs: list[Document]) -> list[RerankResults]:
         if isinstance(reranker_model, str):
             result = rerank_api_call(retrieved_docs)
         else:
             result = rerank_local(retrieved_docs)
         for i, doc in enumerate(result):
             print(f"Document {i + 1}:")
-            print("Name:", doc[0].metadata.get("name", "N/A"))
-            print("Id:", doc[0].metadata.get("id", "N/A"))
-            print("Document number:", doc[0].metadata.get("numberDoc", "N/A"))
-            print("Fields:", doc[0].metadata.get("fields", "N/A"))
-            print("Score:", doc[1])
+            print("Name:", doc["document"].metadata.get("name", "N/A"))
+            print("Id:", doc["document"].metadata.get("id", "N/A"))
+            print("Document number:", doc["document"].metadata.get("numberDoc", "N/A"))
+            print("Fields:", doc["document"].metadata.get("fields", "N/A"))
+            print("Score:", doc["score"])
             print("-"* 50)  # Separator for readability
         return result
     

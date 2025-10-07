@@ -20,7 +20,7 @@ def query_extraction(queries: list[str]) -> list[str]:
 
 def query_translation(query: str, llm: ChatOllama) -> list[str]:
     """
-    Translate a query into a format suitable for Document retrieval.
+    Translate a query into multiple similar queries using a language model.
     """
     template = """
     Bạn là một trợ lý hữu ích với nhiệm vụ đề xuất các câu hỏi truy vấn dựa trên một câu hỏi đầu vào. \n

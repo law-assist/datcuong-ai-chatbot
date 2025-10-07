@@ -15,6 +15,7 @@ from transformers import AutoModelForSequenceClassification
 # Common import
 from types import NoneType
 from bson import ObjectId
+from datetime import date, datetime
 
 # FastAPI import
 from fastapi import FastAPI
@@ -30,7 +31,7 @@ from components.indexing import indexing_docs
 from components.query_translation import query_translation
 from components.query_analysis import query_analysis
 from components.router import route_tool
-from components.retriever import retrieve_and_rerank
+from components.retriever import retrieve_and_rerank, RerankResults
 from utils.data_processing import build_chroma_document_from_mongo_document
 from utils.mongo_handler import get_legislation_by_query
 from datatypes.type import State, ChatbotComponents
@@ -113,11 +114,11 @@ def chatbot_build(llm: ChatOllama, reranker_model, retriever: VectorStoreRetriev
         return {"structured_query": structured_query}
         
     def retrieve(state: State):
-        retrieved_docs = retrieve_and_rerank(retriever, reranker_model, state["messages"][-1].content, state["structured_query"])
+        retrieved_docs = retrieve_and_rerank(retriever, reranker_model, state["messages"][-1].content, state["structured_query"], 6)
         return {"context": retrieved_docs}
 
     def generate(state: State):
-        docs_contents = "\n\n".join(doc[0].page_content for doc in state["context"])
+        docs_contents = "\n\n".join(doc["document"].page_content for doc in state["context"])
         messages = prompt.invoke({"question": state["messages"][-1].content, "context": docs_contents})
         response = llm.invoke(messages)
         return {"messages": {"role": "assistant", "content": [response.content]}}
@@ -144,6 +145,8 @@ def sanitize_metadata(metadata):
     for k, v in metadata.items():
         if isinstance(v, (dict, list)):
             metadata[k] = ", ".join(map(str, v))  # Convert to string
+        if isinstance(v, (datetime, date)):
+            metadata[k] = v.strftime("%Y-%m-%dT%H:%M:%S")  # Convert to ISO format string
     return metadata
 
 # Query MongoDB and index to vector store
@@ -190,6 +193,7 @@ async def question_answering(param: QuestionAnsweringParam):
     raw_query = param.query
     user_id = param.user_id
     chat_id = param.chat_id
+    print(f"User {user_id} - Chat {chat_id}: {raw_query}")
     
     graph_builder = chatbot_componets["graph_builder"]
     with MongoDBSaver.from_conn_string(f"{MONGO_URI}{CHECKPOINT_DB}") as checkpointer:
@@ -197,7 +201,7 @@ async def question_answering(param: QuestionAnsweringParam):
         config = checkpointer_config(user_id, chat_id)
               
         result = chatbot.invoke({"messages": {"type": "human" , "content" : raw_query}}, config=config)
-    response = {"context": [{num: doc[0].page_content} for num, doc in enumerate(result['context'])], "answer": result['messages'][-1].content[0]}
+    response = {"context": [{num: doc["document"].page_content} for num, doc in enumerate(result['context'])], "answer": result['messages'][-1].content[0]}
     return response
 
 
