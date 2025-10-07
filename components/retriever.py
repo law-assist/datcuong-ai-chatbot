@@ -2,7 +2,7 @@ from langchain.load import dumps, loads
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_core.documents import Document
 from langchain_core.runnables import RunnableLambda 
-from sentence_transformers import CrossEncoder
+# from sentence_transformers import CrossEncoder
 from typing import TypedDict, Union, Any
 from pydantic import Field
 import requests

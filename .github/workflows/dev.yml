@@ -51,6 +51,13 @@ jobs:
         imageName: ${{ secrets.DOCKER_USERNAME }}/ai-chatbot
         imageTag: dev-latest
         cacheFrom: ${{ secrets.DOCKER_USERNAME }}/ai-chatbot
+        env: |
+          MONGO_URI: ${{ vars.MONGO_URI }}
+          MONGO_DBNAME: ${{ vars.MONGO_DBNAME }}
+          CHECKPOINT_DB: ${{ vars.CHECKPOINT_DB }}
+          VECTOR_STORE_COLLECTION: ${{ vars.VECTOR_STORE_COLLECTION }}
+          VECTOR_STORE_HOST: ${{ vars.VECTOR_STORE_HOST }}
+          VECTOR_STORE_PORT: ${{ vars.VECTOR_STORE_PORT }}
         push: always
         runCmd: python -V
 

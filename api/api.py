@@ -10,7 +10,7 @@ from langgraph.checkpoint.mongodb import MongoDBSaver
 
 
 # Transformer import
-from transformers import AutoModelForSequenceClassification
+# from transformers import AutoModelForSequenceClassification
 
 # Common import
 from types import NoneType
